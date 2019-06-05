@@ -1,5 +1,7 @@
 # jetty-NameNotFoundException-remaining-name-env-reproduction
 
+See: https://github.com/eclipse/jetty.project/issues/3729
+
 This repository provides a reproduction case for a problem that appears to arise when
 two jetty servers are started in parallel and `EnvEntry` is used. Specifically, some
 proportion of the time (on my local machine is about once every 300 restarts with this setup)
