@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 public class Main {
 
@@ -41,26 +42,35 @@ public class Main {
                 // We start the servers in parallel
                 // The problem appears to go away if the servers are started serially
                 ExecutorService es = Executors.newFixedThreadPool(servers.size());
-                List<Future<Boolean>> serverStartFutures = new LinkedList<>();
-                for (Map.Entry<String, Server> serverEntry : servers.entrySet()) {
-                    final Server server = serverEntry.getValue();
-                    serverStartFutures.add(es.submit(new Callable<Boolean>() {
-                        @Override public Boolean call() throws Exception {
-                            try {
-                                server.start();
-                            } catch (Exception e) {
-                                throw new RuntimeException(e);
+                try {
+                    List<Future<Boolean>> serverStartFutures = new LinkedList<>();
+                    for (Map.Entry<String, Server> serverEntry : servers.entrySet()) {
+                        final Server server = serverEntry.getValue();
+                        serverStartFutures.add(es.submit(new Callable<Boolean>() {
+                            @Override public Boolean call() throws Exception {
+                                try {
+                                    server.start();
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
+                                return true;
                             }
-                            return true;
-                        }
-                    }));
-                }
+                        }));
+                    }
 
-                // Get results from starting each server - After this we expect them to have started.
-                for (Future<Boolean> f : serverStartFutures) {
-                    if (!f.get()) {
+                    // Get results from starting each server - After this we expect them to have started.
+                    for (Future<Boolean> f : serverStartFutures) {
+                        if (!f.get()) {
+                            throw new RuntimeException(
+                                "Server did not successfully start - I haven't seen this happen so if you see this error some problem other than the one I'm trying to expose happened! Maybe try running it again?");
+                        }
+                    }
+
+                } finally {
+                    es.shutdown();
+                    if (!es.awaitTermination(10, TimeUnit.SECONDS)) {
                         throw new RuntimeException(
-                            "Server did not successfully start - I haven't seen this happen so if you see this error some problem other than the one I'm trying to expose happened! Maybe try running it again?");
+                            "ExecutorService did not terminate with 10 seconds - I haven't seen this happen so if you see this error some problem other than the one I'm trying to expose happened! Maybe try running it again?");
                     }
                 }
 
